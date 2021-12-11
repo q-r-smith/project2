@@ -50,31 +50,30 @@ class_diag <- function(score, truth, positive = T, cutoff=.5){
 
 ### Introduction 
 
-The dataset that I chose contains the career statistics for NFL Quarterback Tom Brady. This data includes different metrics that measure his performance over the years as well as his impact on the team's performance. A few of the of the numerical variables include winning percentage, pass yards per game, touchdowns thrown, interceptions thrown, and quarterback rating. The categorical variables are year and team. There are also some binary variables which include Pro Bowl, 1st Team All-Pro, and Super Bowl. These variables determine whether or not Brady went to the Pro Bowl, made 1st Team All-Pro, and won the Super Bowl in that given year. In total, there are 35 different variables that each have 21 obseravations (with the exception of QBR which wasn't recorded until 2006), meaning there are a total if 735 distinct obervations (values) in the dataset.
+The dataset that I chose contains the receiving statistics for the 2020 NFL season. Receivers are measusred on many different metrics, including targets, receptions, and touchdowns. The categorical variables in this dataset include team and player name. There is also a binary variable, AFC which is used to determine player conference. It is binary because it is a true/false observation. In total, the data has 21 variables with 499 rows.
 
-This dataset was chosen because of my love for sports. In the last project, I analyzed different basketball metrics to make statements about different aspects of how the NBA has been changing from year to year as basketball is my favorite sport. I decided to take on a new challenge and analyze football and the NFL. Football has been my second favorite sport for a while now and I took this opportunity to learn more about it. I chose Tom Brady as he is widely considered the greatest player to pick up the pigskin and many people consider him to have 3 different Hall of Fame worthy careers during his 22 year tenure with the NFL. I hope to find out if whether or not that is true.
+This dataset was chosen because of my love for sports. In the last project, I analyzed different basketball metrics to make statements about different aspects of how the NBA has been changing from year to year as basketball is my favorite sport. I decided to take on a new challenge and analyze football and the NFL. Football has been my second favorite sport for a while now and I took this opportunity to learn more about it. 
 
 ```{R}
 library(tidyverse)
 # read your datasets in here, e.g., with read_csv()
-TB12 <-read_csv("thomas_edward_patrick_brady_jr.csv")
+TB12 <-read_csv("nfldata.csv")
 # if your dataset needs tidying, do so here
-TB12 %>% filter(2000 < Year, Year < 2022, Year != 2008) -> TB12
+AFC <- c("TEN", "IND", "HOU", "LVR","KAN", "LAC", "BUF", "NWE", "PIT", "CLE","BAL","MIA", "JAX", "CIN", "NYJ", "DEN" )
+TB12 %>% mutate(AFC = Team%in%AFC) -> TB12
 # any other code here
-TB12 %>% mutate(Year = as.character(Year)) -> TB12
+
 ```
 
-Here we are importing the Tom Brady data and tidying it. Thankfully it was already pretty tidy with a small error in size of the CSV file, so the select function is used get rid of all extraneous rows. Further more, Brady's rookie year and the 2008 year will be removed as he did not complete a full game in either of those years. This will leave us with 19 rows per variable and a total of 665 observations.
+Here, we added a binary variable. This variable is called AFC and notes whether or not a player played the entire season for an AFC team.
 
 
 ### Cluster Analysis
 
 ```{R}
 library(cluster)
-cluster_data <- TB12 %>% select(TD, QBWinPer, Int, Yds, Sk, Att)
+cluster_data <- TB12 %>% select(Tgt, Rec, TD, Yds, Fmb, Lng)
 
-cluster_data_2 <- TB12 %>% select(8:23, 25:35)
-cluster_data_2
 
 sil_width<-vector() 
 for(i in 2:10){  
@@ -83,20 +82,13 @@ for(i in 2:10){
   sil_width[i]<-mean(sil[,3])
 }
 ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10)
-sil_width_2<-vector() 
-for(i in 2:10){  
-  kms <- kmeans(cluster_data_2,centers=i)
-  sil <- silhouette(kms$cluster,dist(cluster_data_2))
-  sil_width_2[i]<-mean(sil[,3])
-}
-max(sil_width_2, na.rm = T)
 
 
 cluster_data %>% pam(k=2) -> pam1
 
 library(GGally)
 TB12 %>% mutate(cluster=as.factor(pam1$clustering)) %>% 
-  ggpairs(columns = c("TD","QBWinPer","Int","Yds","Att"), aes(color=cluster))
+  ggpairs(columns = c("Tgt","Rec","TD","Yds","Fmb", "Lng"), aes(color=cluster))
 
 plot(pam1, which=2)
 kmeans2 <- cluster_data %>% kmeans(2)
@@ -104,9 +96,7 @@ kmeans2 <- cluster_data %>% kmeans(2)
 TB12 %>% mutate(cluster = kmeans2$cluster) -> TB12
 ```
 
-Two different clustering groups were made during this clustering exercise. The first one was based solely on the TD, QBWinPer, Yds, Att, and Sk variables as they represent both team success and individual success of Brady and his teams. Using the silhouette width method, we determined that it would be best to use two different clusters. Then, each variable was plotted based on their clustering using ggpairs. The ggpairs plot showed that data in cluster one had less TDs and a higher QBWinPer while cluster two had more Att (Attempts) and more Yds (Yards). At first glance this may seem as IF Brady played less of a role in wins in cluster one, but this difference in cluster performance may be due to different personal changes that had affected Brady's stats. It's worth noting that the biggest difference in cluster metric were the Yds and TDs as Brady consistently threw for more yards and touchdowns in his cluster seasons.
-
-Furthermore, a second clustering group was made using the same clustering method, silhouette width. In this cluster, we included all the numerical variables and binary variables to see if the number of clusters would change. Even when using all the variables, 2 was still the ideal clustering as it had a width of 0.547 with all the variables (compared to a width of 0.56 when only using the aforementioned 5 variables). This leads me to believe while Brady is still an amazing player, he may only have two Hall of Fame worthy careers.
+Tp determine the number of clusters, I used the silhouette method where the width of a the silhouette would determine the number of clusters. I used a for loop and test a k value 2-10 and found that two clusters would fit the data the best. Then, using ggpairs, I plotted the via cluster and correlation of data.Cluster two appears to be the none starting receiver-type players as they have signficantly less targets than cluster one. Cluster one also has more yards and receptions which is to be expected with having more targets. It is worth noting that both clusters have sparatic TD numbers which shows how important play calling is when scoring rather than just pure skill.
     
     
 ### Dimensionality Reduction with PCA
@@ -115,79 +105,76 @@ Furthermore, a second clustering group was made using the same clustering method
 
 cluster_data %>% cor() %>% eigen() -> eig1
 
-eig1
-X <- cluster_data %>% select(TD, QBWinPer, Int, Yds, Sk, Att) %>% scale
+X <- cluster_data %>% select(Tgt, Rec, TD, Yds, Fmb, Lng) %>% scale
 
 PCAscores <- X %*% eig1$vectors
 TB12%>%mutate(PC1=PCAscores[,1], PC2=PCAscores[,2])%>%
-  ggplot(aes(PC1,PC2,color = PB))+geom_point()
-TB12%>%mutate(PC4=PCAscores[,4], PC6=PCAscores[,6])%>%
-  ggplot(aes(PC4,PC6,color = PB))+geom_point()
+  ggplot(aes(PC1,PC2,color = AFC))+geom_point()
+TB12%>%mutate(PC3=PCAscores[,3], PC4=PCAscores[,4])%>%
+  ggplot(aes(PC3,PC4,color = AFC))+geom_point()
 
 
 
 ```
 
-Here a PCA test is performed in an attempt to reduce the dimensions of the dataset. In order to keep the data consistent with the first clustering, the same five variables are chosen to conduct the dimension reduction. The first plots PCA score 1 vs. PCA socre 2 which are the scores refering to TDs and QBWinPer. As the data moves to the right on the graph, there are more touchdowns thrown while as a vertical shift in the data indicates a higher win percentage. The data is also colored by whether or not Brady went to the Pro Bowl in that given year. In the PC1 vs. PC2 graph, the the data is clustered near PC2 = 0, signifying that win percentage stayed fairly consistent despite the change in the how mnay touchdowns where thrown. This could mean that Brady had a smaller impact on the game than perceived as win percentage was resistent to TDs. The PC4 and PC6 graph reduces the dimensions of the data based on Yds and Atts. In this graph, as you move to the right, Brady throws for more yards and as you move up, Brady has more attempts (once again, this graph is colored by Pro Bowl Season). This graph somewhat displays an expected result as the dots that are higher on the graph are generally on the right side, signifying that more attempts mean more yards. There is one season where Brady had a greatly above average amount of attempts while having a below average number of yards and he still impressively made the Pro Bowl in that year. The PCA scores are used to account for only about 0.56 of the variability in the data.
+Here a PCA test is performed in an attempt to reduce the dimensions of the dataset. In order to keep the data consistent with the first clustering, the same six variables are chosen to conduct the dimension reduction. The first plots PCA score 1 vs. PCA score 2 which are the scores referring to Targets and Receptions As the data moves to the right on the graph, there are more targets thrown while as an upward vertical shift in the data indicates more receptions caught. The data is also colored by conference. In the PC1 vs. PC2 graph, it is clear that as a receiver gets more targets, they also get more receptions. A majority of the data is concentrated around the 0 PC1 and PC2 mark as players generally received the same amount of targets and receptions comparatively. There were a few players who seemed to have caught less targets in relation to most receivers (those receivers probably do not start). The PC3 and PC4 graph reduces the dimensions of the data based on TDs and Yards. In this graph, as you move to the right, a receiver has more yards, and as you move up, a receiver has more touchdowns. This breaks a common way of thinking as yards do not seem to translate to TDs. Therefore, one can assume that play calling plays a large factor in scoring as receivers who are not gaining as many are yards are still scoring relatively similar amounts of touchdowns. The variability of this data represented by the PCA scores is about 0.68
 
 ###  Linear Classifier
 
 ```{R}
-TB12 %>% mutate(PB = as.logical(PB)) -> TB12
-log_fit <- glm(PB == TRUE ~ TD + Yds + Int + Att + Sk + QBWinPer + Lng + Cmp + GWD + Rate, data = TB12)
+
+log_fit <- glm(AFC == TRUE ~ TD + Yds + Tgt + Rec + Ctch + Fmb + Lng + YPT + YPG + YPR, data = TB12)
 prob_reg <- predict(log_fit, type = "response")
 
-class_diag(prob_reg, TB12$PB, positive = T)
+class_diag(prob_reg, TB12$AFC, positive = T)
 
-table(truth = TB12$PB, predictions = prob_reg>.5)
+table(truth = TB12$AFC, predictions = prob_reg>.5)
 
 
 ```
 
 ```{R}
 set.seed(322)
-k = 10
+k=1
 
-data <- sample_frac(TB12)  #randomly order rows
-folds <- rep(1:k, length.out = nrow(data))  #create folds
+data<-sample_frac(TB12) #randomly order rows
+folds <- rep(1:k, length.out=nrow(data)) #create folds
 
-diags <- NULL
+diags<-NULL
 
-i = 1
-#for (i in 1:k) {
-    # create training and test sets
-    #train <- data[folds != i, ]
-   #$ test <- data[folds == i, ]
-    #truth <- test$PB
-    
-    # train model
-    #fit <- glm(PB == TRUE ~ TD + Yds + Int + Att + Sk + QBWinPer + Lng + Cmp + GWD + Rate,
-               #data =TB12)
-    
-    # test model
-    #probs <- predict(fit, type = "response")
-    
-    # get performance metrics for each fold
-    #diags <- rbind(diags, class_diag(probs, truth))
-#}
+i=1
+for(i in 1:k){
+  # create training and test sets
+  train <- data[folds!=i,] 
+  test <- data[folds==i,] 
+  truth <- test$AFC
+  
+  # train model
+  fit <- glm(AFC == "True" ~ TD + Yds + Tgt + Rec + Ctch + Fmb + Lng + YPT + YPG + YPR, data = TB12,
+           family = "binomial")
+  # test model
+  probs <- predict(fit, type = "response")
+  # get performance metrics for each fold
+  
+  diags <- rbind(diags,class_diag(probs,truth))
+}
 
-# average performance metrics across all folds
-#summarize_all(diags, mean)
+#average performance metrics across all folds
+summarize_all(diags,mean)
 ```
 
-Discussion here
+Using the glm() test as a linear classifier, the AUC on the entire data set was 0.5503, which is not a very strong value. This may be because the data is not necessarily linear. The glm() function predicts conference based on TDs, Yards, Targets, Receptions, Catch percentage, fumbles, longest catch, yards per target, yards per game, and yards per reception. The AUC also reflects the confusion matrix which shows a roughly fifty/fifty split among in what is true and what is false. When running the k folds CV model, the AUC was 0.4679, which may suggest some over-fitting by this linear classifier. This difference in AUC combined with the magnitude of the AUC may suggest that the model is not well suited for the data.
 
 ### Non-Parametric Classifier
 
 ```{R}
 library(caret)
-knn_fit <- knn3(PB == TRUE ~ TD + Yds + Int + Att + Sk + QBWinPer + Lng + Cmp + GWD + Rate,
-               data =TB12)
+knn_fit <- knn3(AFC == TRUE ~ TD + Yds + Tgt + Rec + Ctch + Fmb + Lng + YPT + YPG + YPR, data = TB12)
 
 prob_knn <- predict(knn_fit, newdata = TB12)[, 2]
 
-class_diag(prob_knn, TB12$PB)
-table(truth = TB12$PB, predictions = prob_knn>.5)
+class_diag(prob_knn, TB12$AFC)
+table(truth = TB12$AFC, predictions = prob_knn>.5)
 ```
 
 ```{R}
@@ -204,11 +191,10 @@ for (i in 1:k) {
     # create training and test sets
     train <- data[folds != i, ]
     test <- data[folds == i, ]
-    truth <- test$PB
+    truth <- test$AFC
     
     # train model
-    fit <- knn3(PB == TRUE ~ TD + Yds + Int + Att + Sk + QBWinPer + Lng + Cmp + GWD + Rate,
-               data =TB12)
+    fit <- knn3(AFC == TRUE ~ TD + Yds + Tgt + Rec + Ctch + Fmb + Lng + YPT + YPG + YPR, data = TB12)
     
     # test model
     probs <- predict(fit, newdata = test)[, 2]
@@ -220,33 +206,77 @@ for (i in 1:k) {
 summarize_all(diags, mean)
 ```
 
-Discussion
+The Non-Parametric Classifier used was the k-nearest-neighbors function (knn). When running the test on the dataset as a whole initially, the model returned and AUC of 0.6968 which is a moderate fit. Thus the model does an alright job at classifying whether or not a receiver type player is in the AFC based on ten different receiver stats. Then we apply the function to a model that is trained on random samples of the data to test whether or not the model is over-fitting. During this cross validation test, we took a k-10 fold sampling approach. After randomizing the data and taking random samples, preforming the knn on those samples, finding each sample's AUC, and finally averaging all the AUC, the overall AUC was 0.6955. This is extremely close to the previous AUC, meaning our model does well when predicting small handfuls of players' conferences. Even though both results were moderate in strength, we can make the statement that the model does well because it does not over-fit and is adaptable to different data inputs. On another note, the confusion matrix also shows that the model does a little bit better than 50% in predicting the correct conference which is consistent with our AUC measurement.
 
 
 ### Regression/Numeric Prediction
 
 ```{R}
-y <- TB12$PB
-x <- TB12 %>% select(8:23)
+predict_data <- TB12 %>% select(6:19)
+fit<-lm(TD~.,data=predict_data)
+yhat<-predict(fit)
+
+mean((predict_data$TD-yhat)^2, na.rm=T)
 ```
 
 ```{R}
-# cross-validation of regression model here
+set.seed(322)
+k=7 
+
+data<-predict_data[sample(nrow(predict_data)),] 
+folds<-cut(seq(1:nrow(predict_data)),breaks=k,labels=F) 
+
+diags<-NULL
+for(i in 1:k){
+  train<-data[folds!=i,]
+  test<-data[folds==i,]
+  
+ 
+  fit<-lm(TD~.,data=train)
+  
+  
+  yhat<-predict(fit,newdata=test)
+  
+  
+  diags<-mean((test$TD-yhat)^2) 
+}
+
+mean(diags) 
 ```
 
-Discussion
+The linear regression was used to predict TDs versus all other numerical variables including targets, receptions, catch percentage, yards per game, yards per catch, etc. In the first regression prediction, we applied the regression to the entire dataset and we got a mean standard error (MSE) of 1.782, meaning on average the square of the residual of a data point was about 1.782 units. Then we tested the regression by training a model and seeing if it over-fit. We did this by taking 7 folds of the linear regression, taking random samples, then for each sample finding the MSE, then finding the mean of all the sample's MSEs. The overall MSE was 2.043 which is not much higher than our 1.782 that we got for the entire dataset, thus the model is not really over-fitting since the increase in MSE was not very large.
 
 ### Python 
 
 ```{R}
 library(reticulate)
+use_python("/usr/bin/python3")
 ```
 
 ```{python}
-# python code here
+
+import numpy as np
+NFL = r.TB12
+py_data = []
+
+py_data.append((np.mean(NFL.Tgt)))
+py_data.append((np.mean(NFL.Rec)))
+py_data.append((np.mean(NFL.Ctch)))
+py_data.append((np.mean(NFL.Yds)))
+py_data.append((np.mean(NFL.YPR)))
+py_data.append((np.mean(NFL.TD)))
+
+for i in range(len(py_data)):
+  py_data[i] = round(py_data[i], 2)
+  
+
 ```
 
-Discussion
+```{R}
+py$py_data
+```
+
+In the R chunk of code, we access the Python3 library and commands. Using the r. prefix, we are able to bring all of our data into the Python environment. Once the data is there, we saved it as a Python variable to make is easier to work with. Then using the numpy library, we found the mean of some key receiving variables which are targets, receptions, catch percentage, yards, yards per reception, and touchdowns. This allowed us to obtain the average for the NFL based on stats from all the NFL players. We put all of the the means in Python list and sent it back to the R chunk using the py$ prefix and the assigned variable name.
 
 ### Concluding Remarks
 
